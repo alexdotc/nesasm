@@ -1,7 +1,9 @@
 {-# LANGUAGE BinaryLiterals #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Main where
 
+import Control.Monad (replicateM)
 import Data.Binary.Get
 import Data.Bits
 import Data.ByteString.Lazy (ByteString)
@@ -34,7 +36,11 @@ type InesTrainer = ByteString
 type InesPRGROM = ByteString
 type InesCHRROM = ByteString
 type InesMiscROM = ByteString
-type NesID = (ByteString, Word16)
+
+-- Header Byte 7 Flags
+type NES2_0 = Bool
+type MapperBits = Word8
+data ConsoleType = NESFamicom | VsSystem | Playchoice10 | ExtendedConsole
 
 -- fuse LSB and right nibble MSB for 12-bit PRG ROM size
 word12PRG :: Word8 -> Word8 -> Word16 
@@ -44,24 +50,29 @@ word12PRG lsb msb = shift (fromIntegral msb :: Word16) 8 .&. 0x0F00 .|. (fromInt
 word12CHR :: Word8 -> Word8 -> Word16 
 word12CHR lsb msb = shift (fromIntegral msb :: Word16) 4 .&. 0x0F00 .|. (fromIntegral lsb)
 
+parseFlags7 :: Word8 -> (NES2_0, ConsoleType, MapperBits)
+parseFlags7 b = 
+
 readInesFile :: Get InesHeader
 readInesFile = do
-  nesid <- getLazyByteString 4 -- TODO validate "NES\SUB" ... do Word32 instead?
-  prgLSB <- getWord8
-  chrLSB <- getWord8
-  flgs6 <- getWord8
-  flgs7 <- getWord8
-  mapper <- getWord8
-  prgchrMSBs <- getWord8
-  prgram <- getWord8
-  chrram <- getWord8
-  tmng <- getWord8
-  vsec <- getWord8
-  miscr <- getWord8
-  expdev <- getWord8
-  let prgrom = word12PRG prgLSB prgchrMSBs
-  let chrrom = word12CHR chrLSB prgchrMSBs
-  return $ InesHeader prgrom chrrom flgs6 flgs7 mapper prgram chrram tmng vsec miscr expdev
+  getLazyByteString 4 -- TODO validate "NES\SUB" ... do Word32 instead?
+  (
+    prgLSB:
+    chrLSB:
+    flags6:
+    flags7:
+    mapper:
+    prgchrMSBs:
+    prgramsize:
+    chrramsize:
+    timing:
+    vssystem:
+    miscroms:
+    expdev:
+    _) <- replicateM 12 getWord8
+  let prgromsize = word12PRG prgLSB prgchrMSBs
+  let chrromsize = word12CHR chrLSB prgchrMSBs
+  return $ InesHeader{..}
  
 main :: IO ()
 main = do
