@@ -29,7 +29,7 @@ data InesHeader = InesHeader {
                   , prgnvramsize :: Word32 -- offset 10 PRG-NVRAM/EEPROM size
                   , chrramsize :: Word32 -- offset 11 CHR-RAM size
                   , chrnvramsize :: Word32 -- offset 11 CHR-NVRAM size
-                  , timing     :: Word8 -- offset 12 CPU/PPU timings
+                  , timing     :: Timing -- offset 12 CPU/PPU timings
                   , vssystem   :: Word8 -- offset 13 Vs. System Type or Extended Console Type
                   , miscroms   :: Word8 -- offset 14 Misc ROMs Present
                   , expdev     :: Word8 -- offset 15 Default Expansion Device
@@ -58,7 +58,7 @@ readInesHeader = do
     prgchrMSBs:
     prgramshifts:
     chrramshifts:
-    timing:
+    tmng:
     vssystem:
     mscroms:
     expdv:
@@ -70,6 +70,7 @@ readInesHeader = do
   let (mapper, submapper) = mapperSubmapper m03 m47 mapperMSB
   let (prgramsize, prgnvramsize) = parseInesShifts prgramshifts
   let (chrramsize, chrnvramsize) = parseInesShifts chrramshifts
+  let timing = parseTiming tmng
   let miscroms = mscroms .&. 0x03
   let expdev = expdv .&. 0xC0
   return $ InesHeader{..}
@@ -125,6 +126,16 @@ parseFlags7 b = (n,c,m)
               0b10 -> Playchoice10
               0b11 -> ExtendedConsole
         m = b .&. 0xF0
+
+-- CPU/PPU Timing
+data Timing = RP2C02 | RP2C07 | Multiregion | UMC6527P deriving (Eq, Show)
+
+parseTiming :: Word8 -> Timing
+parseTiming b = case b .&. 0b11 of
+                  0b00 -> RP2C02
+                  0b01 -> RP2C07
+                  0b10 -> Multiregion
+                  0b11 -> UMC6527P
  
 main :: IO ()
 main = do
