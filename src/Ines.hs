@@ -9,6 +9,8 @@ import Data.Bits
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BL
 import Data.Word (Word8, Word16)
+import System.Environment (getArgs)
+import System.Exit (exitFailure)
 
 data InesFile = InesFile { 
                   header  :: InesHeader
@@ -21,8 +23,8 @@ data InesFile = InesFile {
 data InesHeader = InesHeader { 
                     prgromsize :: Word16 -- offset 4 (LSB), 9 bits 0-3 (MSB) 16K PRG ROM pages
                   , chrromsize :: Word16 -- offset 5 (LSB), 9 bits 4-7 (MSB) 8K CHR ROM pages
-                  , flags6 :: Word8 -- offset 6 flags
-                  , mapper :: Word8 -- offset 8 mapper info
+                  , mapper :: Word16 -- 12-bit mapper number
+                  , submapper :: Word8 -- offset 8 bits 4-7 submapper
                   , prgramsize :: Word8 -- offset 10 PRG-RAM/EEPROM size
                   , chrramsize :: Word8 -- offset 11
                   , timing     :: Word8 -- offset 12 CPU/PPU timings
@@ -50,28 +52,37 @@ readInesFile = do
     chrLSB:
     flags6:
     flags7:
-    mapper:
+    mapperMSB:
     prgchrMSBs:
     prgramsize:
     chrramsize:
     timing:
     vssystem:
-    miscroms:
-    expdev:
+    mscroms:
+    expdv:
     _) <- replicateM 12 getWord8
   let prgromsize = word12PRG prgLSB prgchrMSBs
   let chrromsize = word12CHR chrLSB prgchrMSBs
   let (hwntm, battery, trainer512, hw4screenmode, m03) = parseFlags6 flags6
   let (nes2, consoleType, m47) = parseFlags7 flags7
+  let (mapper, submapper) = mapperSubmapper m03 m47 mapperMSB
+  let miscroms = mscroms .&. 0x03
+  let expdev = expdv .&. 0xC0
   return $ InesHeader{..}
+
+-- get mapper and submapper from nibbles
+mapperSubmapper :: Word8 -> Word8 -> Word8 -> (Word16, Word8)
+mapperSubmapper m03 m47 msb = (mapper, submapper)
+  where submapper = shiftR msb 4
+        mapper = (fromIntegral (m03 .|. m47) :: Word16) .|. (shiftL (fromIntegral msb :: Word16) 8 .&. 0x0F00)
 
 -- fuse LSB and right nibble MSB for 12-bit PRG ROM size
 word12PRG :: Word8 -> Word8 -> Word16 
-word12PRG lsb msb = shift (fromIntegral msb :: Word16) 8 .&. 0x0F00 .|. (fromIntegral lsb)
+word12PRG lsb msb = shiftL (fromIntegral msb :: Word16) 8 .&. 0x0F00 .|. (fromIntegral lsb)
 
 -- fuse LSB and left nibble MSB for 12-bit CHR ROM size
 word12CHR :: Word8 -> Word8 -> Word16 
-word12CHR lsb msb = shift (fromIntegral msb :: Word16) 4 .&. 0x0F00 .|. (fromIntegral lsb)
+word12CHR lsb msb = shiftL (fromIntegral msb :: Word16) 4 .&. 0x0F00 .|. (fromIntegral lsb)
 
 -- Header Byte 6 Flags
 type Battery = Bool
@@ -92,7 +103,7 @@ parseFlags6 b = (ntm,ba,bt,sm4,m)
         ba = if b .&. 0b10 /= 0 then True else False
         bt = if b .&. 0b100 /= 0 then True else False
         sm4 = if b .&. 0b1000 /= 0 then True else False
-        m = b .&. 0xF0
+        m = shiftR b 4
 
 parseFlags7 :: Word8 -> (NES2_0, ConsoleType, MapperBits)
 parseFlags7 b = (n,c,m)
@@ -106,5 +117,9 @@ parseFlags7 b = (n,c,m)
  
 main :: IO ()
 main = do
-  nesh <- BL.readFile "ex.nes"
+  args <- getArgs
+  case length args of
+    0 -> do putStrLn "Please specify a NES ROM!"; exitFailure
+    _ -> return ()
+  nesh <- BL.readFile $ head args
   print $ runGet readInesFile nesh
