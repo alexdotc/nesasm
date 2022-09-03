@@ -8,7 +8,7 @@ import Data.Binary.Get
 import Data.Bits
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BL
-import Data.Word (Word8, Word16)
+import Data.Word (Word8, Word16, Word32)
 import System.Environment (getArgs)
 import System.Exit (exitFailure)
 
@@ -25,8 +25,10 @@ data InesHeader = InesHeader {
                   , chrromsize :: Word16 -- offset 5 (LSB), 9 bits 4-7 (MSB) 8K CHR ROM pages
                   , mapper :: Word16 -- 12-bit mapper number
                   , submapper :: Word8 -- offset 8 bits 4-7 submapper
-                  , prgramsize :: Word8 -- offset 10 PRG-RAM/EEPROM size
-                  , chrramsize :: Word8 -- offset 11
+                  , prgramsize :: Word32 -- offset 10 PRG-RAM size
+                  , prgnvramsize :: Word32 -- offset 10 PRG-NVRAM/EEPROM size
+                  , chrramsize :: Word32 -- offset 11 CHR-RAM size
+                  , chrnvramsize :: Word32 -- offset 11 CHR-NVRAM size
                   , timing     :: Word8 -- offset 12 CPU/PPU timings
                   , vssystem   :: Word8 -- offset 13 Vs. System Type or Extended Console Type
                   , miscroms   :: Word8 -- offset 14 Misc ROMs Present
@@ -44,8 +46,8 @@ type InesPRGROM = ByteString
 type InesCHRROM = ByteString
 type InesMiscROM = ByteString
 
-readInesFile :: Get InesHeader
-readInesFile = do
+readInesHeader :: Get InesHeader
+readInesHeader = do
   getLazyByteString 4 -- TODO validate "NES\SUB" ... do Word32 instead?
   (
     prgLSB:
@@ -54,8 +56,8 @@ readInesFile = do
     flags7:
     mapperMSB:
     prgchrMSBs:
-    prgramsize:
-    chrramsize:
+    prgramshifts:
+    chrramshifts:
     timing:
     vssystem:
     mscroms:
@@ -66,9 +68,18 @@ readInesFile = do
   let (hwntm, battery, trainer512, hw4screenmode, m03) = parseFlags6 flags6
   let (nes2, consoleType, m47) = parseFlags7 flags7
   let (mapper, submapper) = mapperSubmapper m03 m47 mapperMSB
+  let (prgramsize, prgnvramsize) = parseInesShifts prgramshifts
+  let (chrramsize, chrnvramsize) = parseInesShifts chrramshifts
   let miscroms = mscroms .&. 0x03
   let expdev = expdv .&. 0xC0
   return $ InesHeader{..}
+
+parseInesShifts :: Word8 -> (Word32, Word32)
+parseInesShifts b = (f n1, f n2) where
+  f :: Word8 -> Word32
+  f n = let x = shiftL 64 (fromIntegral n) in if n == 0 then 0 else x
+  n1 = b .&. 0x0F
+  n2 = shiftR b 4 .&. 0x0F
 
 -- get mapper and submapper from nibbles
 mapperSubmapper :: Word8 -> Word8 -> Word8 -> (Word16, Word8)
@@ -122,4 +133,4 @@ main = do
     0 -> do putStrLn "Please specify a NES ROM!"; exitFailure
     _ -> return ()
   nesh <- BL.readFile $ head args
-  print $ runGet readInesFile nesh
+  print $ runGet readInesHeader nesh
