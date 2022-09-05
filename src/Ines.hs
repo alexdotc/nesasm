@@ -49,30 +49,19 @@ type InesMiscROM = ByteString
 readInesHeader :: Get InesHeader
 readInesHeader = do
   getLazyByteString 4 -- TODO validate "NES\SUB" ... do Word32 instead?
-  (
-    prgLSB:
-    chrLSB:
-    flags6:
-    flags7:
-    mapperMSB:
-    prgchrMSBs:
-    prgramshifts:
-    chrramshifts:
-    tmng:
-    b13:
-    mscroms:
-    expdv:
-    _) <- replicateM 12 getWord8
-  let prgromsize = word12PRG prgLSB prgchrMSBs
-  let chrromsize = word12CHR chrLSB prgchrMSBs
-  let (hwntm, battery, trainer512, hw4screenmode, m03) = parseFlags6 flags6
-  let (nes2, consoleType, m47) = parseFlags7 flags7 b13
-  let (mapper, submapper) = mapperSubmapper m03 m47 mapperMSB
-  let (prgramsize, prgnvramsize) = parseInesShifts prgramshifts
-  let (chrramsize, chrnvramsize) = parseInesShifts chrramshifts
-  let timing = parseTiming tmng
-  let miscroms = mscroms .&. 0x03
-  let expdev = expdv .&. 0xC0
+  (b4:b5:b6:b7:b8:b9:b10:b11:b12:b13:b14:b15:_) <- replicateM 12 getWord8
+
+  let prgromsize = word12PRG b4 b9
+  let chrromsize = word12CHR b5 b9
+  let (hwntm, battery, trainer512, hw4screenmode, m03) = parseFlags6 b6
+  let (nes2, consoleType, m47) = parseFlags7 b7 b13
+  let (mapper, submapper) = mapperSubmapper m03 m47 b8
+  let (prgramsize, prgnvramsize) = parseInesShifts b10
+  let (chrramsize, chrnvramsize) = parseInesShifts b11
+  let timing = parseTiming b12
+  let miscroms = b14 .&. 0x03
+  let expdev = b15 .&. 0xC0
+
   return $ InesHeader{..}
 
 parseInesShifts :: Word8 -> (Word32, Word32)
@@ -155,9 +144,13 @@ parseECT b = case b .&. 0xF of
                0xC -> FamicomNetworkSystem
 
 parseVST :: Reader Word8 ConsoleType
-parseVST = \b -> VsSystem p h
-  where p = case b .&. 0xF of
-        h = case shiftR b 4 of
+parseVST = do 
+    b <- ask
+    let p = case b .&. 0xF of
+              _ -> Placeholder
+    let h = case shiftR b 4 of
+              _ -> Placeholder2
+    return $ VsSystem p h
 
 -- CPU/PPU Timing
 data Timing = RP2C02 | RP2C07 | Multiregion | UMC6527P deriving (Eq, Show)
