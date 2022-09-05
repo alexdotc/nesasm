@@ -4,6 +4,7 @@
 module Main where
 
 import Control.Monad (replicateM)
+import Control.Monad.Reader
 import Data.Binary.Get
 import Data.Bits
 import Data.ByteString.Lazy (ByteString)
@@ -37,8 +38,7 @@ data InesHeader = InesHeader {
                   , hw4screenmode :: Bool -- Hard-wired four-screen mode
                   , nes2       :: Bool -- NES2.0 extended format ROM?
                   , hwntm       :: HWNTM -- Hard-wried nametable mirroring type
-                  , consoleType :: ConsoleType -- Regular NES or special?
-                  , vsSystemType :: VsSystemType -- VS System Type if VS System
+                  , consoleType :: ConsoleType -- Vs/Extended/Regular
                   } deriving Show
 
 type InesTrainer = ByteString
@@ -107,7 +107,7 @@ data HWNTM = HorizontalOrMapperControlled | Vertical deriving (Eq, Show)
 -- Header Byte 7 Flags
 type NES2_0 = Bool
 type MapperBits = Word8
-data ConsoleType = NESFamicom | VsSystem VSType | Playchoice10 | ExtendedConsole ECType deriving (Eq, Show)
+data ConsoleType = NESFamicom | VsSystem VsPPUType VsHWType | Playchoice10 | ExtendedConsole ECType deriving (Eq, Show)
 data ECType =   DecModeCPU -- Regular Famiclone, but with CPU that supports Decimal Mode
              |  EPSM -- Regular NES/Famicom with EPSM module or plug-through cartridge
              |  VT01  -- V.R. Technology VT01 with red/cyan STN palette
@@ -120,10 +120,11 @@ data ECType =   DecModeCPU -- Regular Famiclone, but with CPU that supports Deci
              |  FamicomNetworkSystem
              deriving (Eq, Show) 
 
-data VSType = Placeholder deriving (Eq, Show)
+data VsPPUType = Placeholder deriving (Eq, Show)
+data VsHWType = Placeholder2 deriving (Eq, Show)
 
 parseFlags6 :: Word8 -> (HWNTM, Battery, Trainer512B, HWFourScreenMode, MapperBits)
-parseFlags6 b b13 = (ntm,ba,bt,sm4,m)
+parseFlags6 b = (ntm,ba,bt,sm4,m)
   where ntm = if b .&. 0b1 /= 0 then Vertical else HorizontalOrMapperControlled
         ba = if b .&. 0b10 /= 0 then True else False
         bt = if b .&. 0b100 /= 0 then True else False
@@ -135,16 +136,28 @@ parseFlags7 b b13 = (n,c,m)
   where n = b .&. 0b1100 == 0b1000
         c = case b .&. 0b11 of
               0b00 -> NESFamicom
-              0b01 -> VsSystem $ parseVST b13
+              0b01 -> runReader parseVST b13
               0b10 -> Playchoice10
               0b11 -> ExtendedConsole $ parseECT b13
         m = b .&. 0xF0
 
 parseECT :: Word8 -> ECType
-parseECT b = FamicomNetworkSystem --TODO
+parseECT b = case b .&. 0xF of
+               0x3 -> DecModeCPU
+               0x4 -> EPSM
+               0x5 -> VT01
+               0x6 -> VT02
+               0x7 -> VT03
+               0x8 -> VT09
+               0x9 -> VT32
+               0xA -> VT369
+               0xB -> UMCUM6578
+               0xC -> FamicomNetworkSystem
 
-parseVST :: Word8 -> VSType
-parseVST b = Placeholder -- TODO
+parseVST :: Reader Word8 ConsoleType
+parseVST = \b -> VsSystem p h
+  where p = case b .&. 0xF of
+        h = case shiftR b 4 of
 
 -- CPU/PPU Timing
 data Timing = RP2C02 | RP2C07 | Multiregion | UMC6527P deriving (Eq, Show)
