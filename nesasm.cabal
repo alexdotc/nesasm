@@ -8,7 +8,8 @@ cabal-version:       >=1.10
 executable nesasm 
   ghc-options:         -Wall
   hs-source-dirs:      src
-  main-is:             Ines.hs
+  main-is:             Main.hs
+  other-modules:       Header
   default-language:    Haskell2010
   build-depends:       base >= 4.7 && < 5
                      , binary
