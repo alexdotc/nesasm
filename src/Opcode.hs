@@ -31,6 +31,7 @@ data Instruction =  BRK | ORA | SLO | NOP | ASL | ANC | BPL | CLC | SED
                   | TXS | TAS | SHY | SHX | LDY | LDA | LDX | LAX | TAY
                   | BCS | CLV | TSX | LAS | CPY | CMP | DCP | DEC | INY
                   | DEX | AXS | BNE | CLD | CPX | ISC | SBC | INC | BEQ
+                  | INX | TAX
                   deriving (Eq, Show)
 
 parseOpcode :: Word8 -> Opcode
@@ -155,3 +156,128 @@ parseOpcode b = case b of
   0x7D -> Op ADC AbsoluteIndexedY
   0x7E -> Op ROR AbsoluteIndexedY
   0x7F -> Op RRA AbsoluteIndexedY
+  0x80 -> Op NOP Immediate
+  0x81 -> Op STA IndexedIndirect
+  0x82 -> Op NOP Immediate
+  0x83 -> Op RRA IndexedIndirect
+  0x84 -> Op STY ZeroPage
+  0x85 -> Op STA ZeroPage
+  0x86 -> Op STX ZeroPage
+  0x87 -> Op SAX ZeroPage
+  0x88 -> Op DEY Implied
+  0x89 -> Op NOP Immediate
+  0x8A -> Op TXA Implied
+  0x8B -> Op XAA Immediate
+  0x8C -> Op STY Absolute
+  0x8D -> Op STA Absolute
+  0x8E -> Op STX Absolute
+  0x8F -> Op SAX Absolute
+  0x90 -> Op BCC Relative
+  0x91 -> Op STA IndirectIndexed
+  0x93 -> Op AHX IndirectIndexed
+  0x94 -> Op STY ZeroPageIndexedX
+  0x95 -> Op STA ZeroPageIndexedX
+  0x96 -> Op STX ZeroPageIndexedY
+  0x97 -> Op SAX ZeroPageIndexedY
+  0x98 -> Op TYA Implied
+  0x99 -> Op STA AbsoluteIndexedY
+  0x9A -> Op TXS Implied
+  0x9B -> Op TAS AbsoluteIndexedY
+  0x9C -> Op SHY AbsoluteIndexedX
+  0x9D -> Op STA AbsoluteIndexedX
+  0x9E -> Op SHX AbsoluteIndexedY
+  0x9F -> Op AHX AbsoluteIndexedY
+  0xA0 -> Op LDY Immediate
+  0xA1 -> Op LDA IndexedIndirect
+  0xA2 -> Op LDX Immediate
+  0xA3 -> Op LAX IndexedIndirect
+  0xA4 -> Op LDY ZeroPage
+  0xA5 -> Op LDA ZeroPage
+  0xA6 -> Op LDX ZeroPage
+  0xA7 -> Op LAX ZeroPage
+  0xA8 -> Op TAY Implied
+  0xA9 -> Op LDA Immediate
+  0xAA -> Op TAX Implied
+  0xAB -> Op LAX Immediate
+  0xAC -> Op LDY Absolute
+  0xAD -> Op LDA Absolute
+  0xAE -> Op LDX Absolute
+  0xAF -> Op LAX Absolute
+  0xB0 -> Op BCS Relative
+  0xB1 -> Op LDA IndirectIndexed
+  0xB3 -> Op LAX IndirectIndexed
+  0xB4 -> Op LDY ZeroPageIndexedX
+  0xB5 -> Op LDA ZeroPageIndexedX
+  0xB6 -> Op LDX ZeroPageIndexedY
+  0xB7 -> Op LAX ZeroPageIndexedY
+  0xB8 -> Op CLV Implied
+  0xB9 -> Op LDA AbsoluteIndexedY
+  0xBA -> Op TSX Implied
+  0xBB -> Op LAS AbsoluteIndexedY
+  0xBC -> Op LDY AbsoluteIndexedX
+  0xBD -> Op LDA AbsoluteIndexedX
+  0xBE -> Op LDX AbsoluteIndexedY
+  0xBF -> Op LAX AbsoluteIndexedY
+  0xC0 -> Op CPY Immediate
+  0xC1 -> Op CMP IndexedIndirect
+  0xC2 -> Op NOP Immediate
+  0xC3 -> Op DCP IndexedIndirect
+  0xC4 -> Op CPY ZeroPage
+  0xC5 -> Op CMP ZeroPage
+  0xC6 -> Op DEC ZeroPage
+  0xC7 -> Op DCP ZeroPage
+  0xC8 -> Op INY Implied
+  0xC9 -> Op CMP Immediate
+  0xCA -> Op DEX Implied
+  0xCB -> Op AXS Immediate
+  0xCC -> Op CPY Absolute
+  0xCD -> Op CMP Absolute
+  0xCE -> Op DEC Absolute
+  0xCF -> Op DCP Absolute
+  0xD0 -> Op BNE Relative
+  0xD1 -> Op CMP IndirectIndexed
+  0xD3 -> Op DCP IndirectIndexed
+  0xD4 -> Op NOP ZeroPageIndexedX
+  0xD5 -> Op CMP ZeroPageIndexedX
+  0xD6 -> Op DEC ZeroPageIndexedX
+  0xD7 -> Op DCP ZeroPageIndexedX
+  0xD8 -> Op CLD Implied
+  0xD9 -> Op CMP AbsoluteIndexedY
+  0xDA -> Op NOP Implied
+  0xDB -> Op DCP AbsoluteIndexedY
+  0xDC -> Op NOP AbsoluteIndexedX
+  0xDD -> Op CMP AbsoluteIndexedX
+  0xDE -> Op DEC AbsoluteIndexedX
+  0xDF -> Op DCP AbsoluteIndexedX
+  0xE0 -> Op CPX Immediate
+  0xE1 -> Op SBC IndexedIndirect
+  0xE2 -> Op NOP Immediate
+  0xE3 -> Op ISC IndexedIndirect
+  0xE4 -> Op CPX ZeroPage
+  0xE5 -> Op SBC ZeroPage
+  0xE6 -> Op INC ZeroPage
+  0xE7 -> Op ISC ZeroPage
+  0xE8 -> Op INX Implied
+  0xE9 -> Op SBC Immediate
+  0xEA -> Op NOP Implied
+  0xEB -> Op SBC Immediate
+  0xEC -> Op CPX Absolute
+  0xED -> Op SBC Absolute
+  0xEE -> Op INC Absolute
+  0xEF -> Op ISC Absolute
+  0xF0 -> Op BEQ Relative
+  0xF1 -> Op SBC IndirectIndexed
+  0xF3 -> Op ISC IndirectIndexed
+  0xF4 -> Op NOP ZeroPageIndexedX
+  0xF5 -> Op SBC ZeroPageIndexedX
+  0xF6 -> Op INC ZeroPageIndexedX
+  0xF7 -> Op ISC ZeroPageIndexedX
+  0xF8 -> Op SED Implied
+  0xF9 -> Op SBC AbsoluteIndexedY
+  0xFA -> Op NOP Implied
+  0xFB -> Op ISC AbsoluteIndexedY
+  0xFC -> Op NOP AbsoluteIndexedX
+  0xFD -> Op SBC AbsoluteIndexedX
+  0xFE -> Op INC AbsoluteIndexedX
+  0xFF -> Op ISC AbsoluteIndexedX
+  -- TODO opcodes omitted here will "crash" the machine, but we should probably handle this case in a disassembler
