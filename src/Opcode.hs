@@ -1,12 +1,8 @@
-module Opcode (Opcode, parseOpcode) where
+module Opcode where
 
-import Control.Monad (replicateM)
-import Control.Monad.Trans.Reader
-import Data.Binary.Get
-import Data.Bits
-import Data.Word (Word8, Word16, Word32)
+import Data.Word (Word8)
 
-data Opcode = Op Instruction AddressingMode deriving (Eq, Show)
+data Opcode = Op Mnemonic AddressingMode deriving (Eq, Show)
 
 data AddressingMode =  Implied
                      | Accumulator
@@ -23,7 +19,7 @@ data AddressingMode =  Implied
                      | IndirectIndexed
                      deriving (Eq, Show)
 
-data Instruction =  BRK | ORA | SLO | NOP | ASL | ANC | BPL | CLC | SED
+data Mnemonic =  BRK | ORA | SLO | NOP | ASL | ANC | BPL | CLC | SED
                   | JSR | BIT | ROL | RLA | BMI | SEC | AND | RTI | EOR
                   | SRE | LSR | PHA | PLP | PHP | ALR | JMP | BVC | CLI
                   | RTS | ADC | RRA | ROR | PLA | ARR | BVS | SEI | STA

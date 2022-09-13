@@ -1,12 +1,12 @@
 module Main where
 
-import Data.Binary.Get
-import Data.ByteString.Lazy (ByteString)
+import Data.Binary.Get (runGet)
 import qualified Data.ByteString.Lazy as BL
 import System.Environment (getArgs)
 import System.Exit (exitFailure)
 
 import Header
+import Disassemble
 
 data InesFile = InesFile { 
                   header  :: InesHeader
@@ -15,11 +15,6 @@ data InesFile = InesFile {
                 , chrrom  :: InesCHRROM
                 , miscrom :: InesMiscROM
                 } deriving Show
-
-type InesTrainer = ByteString
-type InesPRGROM = ByteString
-type InesCHRROM = ByteString
-type InesMiscROM = ByteString
 
 main :: IO ()
 main = do

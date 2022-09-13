@@ -11,6 +11,7 @@ executable nesasm
   main-is:             Main.hs
   other-modules:       Header
                      , Opcode
+                     , Disassemble
   default-language:    Haskell2010
   build-depends:       base >= 4.7 && < 5
                      , binary
