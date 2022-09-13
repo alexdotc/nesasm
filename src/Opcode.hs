@@ -27,7 +27,7 @@ data Mnemonic =  BRK | ORA | SLO | NOP | ASL | ANC | BPL | CLC | SED
                   | TXS | TAS | SHY | SHX | LDY | LDA | LDX | LAX | TAY
                   | BCS | CLV | TSX | LAS | CPY | CMP | DCP | DEC | INY
                   | DEX | AXS | BNE | CLD | CPX | ISC | SBC | INC | BEQ
-                  | INX | TAX
+                  | INX | TAX | KIL
                   deriving (Eq, Show)
 
 parseOpcode :: Word8 -> Opcode
@@ -276,4 +276,4 @@ parseOpcode b = case b of
   0xFD -> Op SBC AbsoluteIndexedX
   0xFE -> Op INC AbsoluteIndexedX
   0xFF -> Op ISC AbsoluteIndexedX
-  -- TODO opcodes omitted here will "crash" the machine, but we should probably handle this case in a disassembler
+  _    -> Op KIL Implied -- TODO actually stop the parse
