@@ -3,28 +3,39 @@
 module Main where
 
 import Data.Binary.Get
-import qualified Data.ByteString.Lazy as BL
+import Data.ByteString.Lazy (ByteString)
+import qualified Data.ByteString.Lazy as B
 import System.Environment (getArgs)
 import System.Exit (exitFailure)
 
 import Header
-import Disassemble
+
+type InesROM = ByteString
+type InesTrainer = Maybe ByteString
+type InesMiscROM = Maybe ByteString
 
 data InesFile = InesFile { 
                   header  :: InesHeader
                 , trainer :: InesTrainer
-                , prgrom  :: InesPRGROM
-                , chrrom  :: InesCHRROM
+                , prgrom  :: InesROM
+                , chrrom  :: InesROM
                 , miscrom :: InesMiscROM
                 } deriving Show
 
-disassemble :: Get InesFile
-disassemble = do
-  header  <- readInesHeader
-  prgrom  <- readPRGROM
-  chrrom  <- getLazyByteString 16
-  let trainer = Nothing
-  let miscrom = Nothing
+getROM :: Integral a => a -> Get InesROM
+getROM size = getLazyByteString $ fromIntegral size
+
+chunkrom :: Get InesFile
+chunkrom = do
+  header  <- getInesHeader
+  trainer <- case hasTrainer header of
+                True -> return <$> getROM 512
+                False -> return Nothing
+  prgrom  <- getROM $ prgromsize header
+  chrrom  <- getROM $ chrromsize header
+  miscrom <- case miscroms header of
+                0 -> return Nothing
+                _ -> return <$> let mr = miscroms header in getROM mr
   return $ InesFile{..}
 
 main :: IO ()
@@ -33,5 +44,5 @@ main = do
   case length args of
     0 -> do putStrLn "Please specify a NES ROM!"; exitFailure
     _ -> return ()
-  nesh <- BL.readFile $ head args
-  print $ runGet disassemble nesh
+  nes2_0 <- B.readFile $ head args
+  print $ runGet chunkrom nes2_0

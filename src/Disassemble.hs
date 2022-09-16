@@ -6,16 +6,11 @@ import Data.ByteString.Lazy (ByteString)
 
 import Opcode
 
-type InesTrainer = Maybe ByteString
-type InesPRGROM = [(Mnemonic, Operand)]
-type InesCHRROM = ByteString
-type InesMiscROM = Maybe ByteString
-
 type Operand = Maybe ByteString
 
-readPRGROM :: Get InesPRGROM
+readPRGROM :: Get [(Mnemonic, Operand)]
 readPRGROM = do
-  ins <- replicateM 10000 instruction
+  ins <- replicateM 50 instruction
   return $ ins
 
 instruction :: Get (Mnemonic, Operand)

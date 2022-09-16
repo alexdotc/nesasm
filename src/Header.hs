@@ -1,7 +1,7 @@
 {-# LANGUAGE BinaryLiterals #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module Header (InesHeader, readInesHeader) where
+module Header (InesHeader(..), getInesHeader) where
 
 import Control.Monad (replicateM)
 import Control.Monad.Trans.Reader
@@ -10,33 +10,33 @@ import Data.Bits
 import Data.Word (Word8, Word16, Word32)
 
 data InesHeader = InesHeader { 
-                    prgromsize :: Word16 -- offset 4 (LSB), 9 bits 0-3 (MSB) 16K PRG ROM pages
-                  , chrromsize :: Word16 -- offset 5 (LSB), 9 bits 4-7 (MSB) 8K CHR ROM pages
+                    prgromsize :: Word32 -- offset 4 (LSB), 9 bits 0-3 (MSB) 16K PRG ROM pages
+                  , chrromsize :: Word32 -- offset 5 (LSB), 9 bits 4-7 (MSB) 8K CHR ROM pages
                   , mapper :: Word16 -- 12-bit mapper number
                   , submapper :: Word8 -- offset 8 bits 4-7 submapper
                   , prgramsize :: Word32 -- offset 10 PRG-RAM size
                   , prgnvramsize :: Word32 -- offset 10 PRG-NVRAM/EEPROM size
                   , chrramsize :: Word32 -- offset 11 CHR-RAM size
-                  , chrnvramsize :: Word32 -- offset 11 CHR-NVRAM size
+                  , chrnvramsize :: Word32-- offset 11 CHR-NVRAM size
                   , miscroms   :: Word8 -- offset 14 Misc ROMs Present
                   , timing     :: Timing -- offset 12 CPU/PPU timings
                   , expdev     :: ExpDev -- offset 15 Default Expansion Device
                   , battery    :: Bool -- Battery or non-volatile memory
-                  , trainer512 :: Bool -- 512 Byte Trainer
+                  , hasTrainer    :: Bool -- 512 Byte Trainer
                   , hw4screenmode :: Bool -- Hard-wired four-screen mode
                   , nes2       :: Bool -- NES2.0 extended format ROM?
                   , hwntm       :: HWNTM -- Hard-wried nametable mirroring type
                   , consoleType :: ConsoleType -- Vs/Extended/Regular
                   } deriving Show
 
-readInesHeader :: Get InesHeader
-readInesHeader = do
+getInesHeader :: Get InesHeader
+getInesHeader = do
   getLazyByteString 4 -- TODO validate "NES\SUB" ... do Word32 instead?
   (b4:b5:b6:b7:b8:b9:b10:b11:b12:b13:b14:b15:_) <- replicateM 12 getWord8
 
-  let prgromsize = word12PRG b4 b9
-  let chrromsize = word12CHR b5 b9
-  let (hwntm, battery, trainer512, hw4screenmode, m03) = parseFlags6 b6
+  let prgromsize = 16384 * (fromIntegral $ word12PRG b4 b9)
+  let chrromsize =  8192 * (fromIntegral $ word12CHR b5 b9)
+  let (hwntm, battery, hasTrainer, hw4screenmode, m03) = parseFlags6 b6
   let (nes2, consoleType, m47) = parseFlags7 b7 b13
   let (mapper, submapper) = mapperSubmapper m03 m47 b8
   let (prgramsize, prgnvramsize) = parseInesShifts b10
