@@ -1,4 +1,5 @@
 {-# LANGUAGE BinaryLiterals #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Header (InesHeader(..), getInesHeader) where
@@ -31,7 +32,10 @@ data InesHeader = InesHeader {
 
 getInesHeader :: Get InesHeader
 getInesHeader = do
-  getLazyByteString 4 -- TODO validate "NES\SUB" ... do Word32 instead?
+  signature <- getLazyByteString 4
+  case signature of
+    "NES\SUB" -> return ()
+    _         -> fail "Bad header: iNES signature mismatch"
   (b4:b5:b6:b7:b8:b9:b10:b11:b12:b13:b14:b15:_) <- replicateM 12 getWord8
 
   let prgromsize = 16384 * (fromIntegral $ word12PRG b4 b9)
