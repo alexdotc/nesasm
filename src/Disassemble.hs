@@ -1,33 +1,30 @@
 module Disassemble where
 
 import Control.Monad (replicateM)
-import Data.Binary.Get
+import Control.Monad.Trans.Reader
+import Control.Monad.Trans.State
 import Data.ByteString.Lazy (ByteString)
+import Data.Word
 
 import Opcode
 
+data DisasmState = DisasmState {
+                     position :: Word32
+                   , done :: [Instruction]
+                   , stack :: [Word32]
+                   , prg :: ByteString
+                   } deriving Show
+
+type Disassembler = StateT DisasmState IO
+
 type Operand = Maybe ByteString
+type Instruction = (Mnemonic, Operand)
 
-readPRGROM :: Get [(Mnemonic, Operand)]
-readPRGROM = do
-  ins <- replicateM 50 instruction
-  return $ ins
+start :: Disassembler ()
+start = undefined
 
-instruction :: Get (Mnemonic, Operand)
-instruction = do
-  (Op m mode) <- parseOpcode <$> getWord8
-  operands <- case mode of
-                Implied -> return Nothing
-                Accumulator -> return Nothing
-                Relative -> Just <$> getLazyByteString 1 -- this is signed
-                Immediate -> Just <$> getLazyByteString 1
-                Absolute -> Just <$> getLazyByteString 2
-                Indirect -> Just <$> getLazyByteString 2
-                ZeroPage -> Just <$> getLazyByteString 1
-                ZeroPageIndexedX -> Just <$> getLazyByteString 1
-                ZeroPageIndexedY -> Just <$> getLazyByteString 1
-                AbsoluteIndexedX -> Just <$> getLazyByteString 2
-                AbsoluteIndexedY -> Just <$> getLazyByteString 2
-                IndirectIndexed -> Just <$> getLazyByteString 1
-                IndexedIndirect -> Just <$> getLazyByteString 1
-  return $ (m, operands)
+disassemble :: ByteString -> IO DisasmState
+disassemble rom = do
+  let initState = DisasmState 0 [] [] rom
+  (_,d) <- runStateT start initState
+  return d
