@@ -9,6 +9,7 @@ import System.Environment (getArgs)
 import System.Exit (exitFailure)
 
 import Header
+import Disassemble
 
 type InesROM = ByteString
 type InesTrainer = Maybe ByteString
@@ -45,4 +46,5 @@ main = do
     0 -> do putStrLn "Please specify a NES ROM!"; exitFailure
     _ -> return ()
   nes2_0 <- B.readFile $ head args
-  print $ runGet chunkrom nes2_0
+  let inr =  runGet chunkrom nes2_0
+  print $ disassemble $ prgrom inr

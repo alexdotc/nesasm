@@ -1,30 +1,54 @@
-module Disassemble where
+module Disassemble (disassemble) where
 
-import Control.Monad (replicateM)
-import Control.Monad.Trans.Reader
+import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State
 import Data.ByteString.Lazy (ByteString)
+import qualified Data.ByteString.Lazy as BL
+import Data.Functor.Identity (Identity)
 import Data.Word
+import GHC.Int
 
 import Opcode
 
 data DisasmState = DisasmState {
-                     position :: Word32
+                     position :: Int64
                    , done :: [Instruction]
                    , stack :: [Word32]
                    , prg :: ByteString
                    } deriving Show
 
-type Disassembler = StateT DisasmState IO
+type Disassembler = StateT DisasmState Maybe
 
+type InesROM = ByteString -- redundant, keep till reorg
 type Operand = Maybe ByteString
 type Instruction = (Mnemonic, Operand)
 
-start :: Disassembler ()
-start = undefined
+indexMaybe :: ByteString -> Int64 -> Maybe (Word8)
+indexMaybe b n
+  | n >= BL.length b = Nothing
+  | otherwise = Just $ BL.index b n
 
-disassemble :: ByteString -> IO DisasmState
+start :: Disassembler ()
+start = do
+  opc <- next
+  (m, o) <- instruction
+  return ()
+
+next :: Disassembler Opcode
+next = do
+  pos <- gets position
+  rom <- gets prg
+  updatePosition 1
+  lift $ parseOpcode <$> indexMaybe rom pos
+
+instruction :: Disassembler Instruction
+instruction = undefined
+
+updatePosition :: Int64 -> Disassembler ()
+updatePosition n = modify $ \s -> s { position = position s + n }
+
+disassemble :: InesROM -> Maybe DisasmState
 disassemble rom = do
-  let initState = DisasmState 0 [] [] rom
-  (_,d) <- runStateT start initState
+  let initState = DisasmState 0 [] []
+  (_,d) <- runStateT start (initState rom)
   return d
