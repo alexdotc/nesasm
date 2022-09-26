@@ -47,4 +47,4 @@ main = do
     _ -> return ()
   nes2_0 <- B.readFile $ head args
   let inr =  runGet chunkrom nes2_0
-  print $ disassemble $ prgrom inr
+  print $ disassemble $ B.toStrict $ prgrom inr

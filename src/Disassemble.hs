@@ -2,16 +2,15 @@ module Disassemble (disassemble) where
 
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State
-import Data.ByteString.Lazy (ByteString)
-import qualified Data.ByteString.Lazy as BL
+import Data.ByteString (ByteString)
+import qualified Data.ByteString as B
 import Data.Functor.Identity (Identity)
 import Data.Word
-import GHC.Int
 
 import Opcode
 
 data DisasmState = DisasmState {
-                     position :: Int64
+                     position :: Int
                    , done :: [Instruction]
                    , stack :: [Word32]
                    , prg :: ByteString
@@ -23,10 +22,10 @@ type InesROM = ByteString -- redundant, keep till reorg
 type Operand = Maybe ByteString
 type Instruction = (Mnemonic, Operand)
 
-indexMaybe :: ByteString -> Int64 -> Maybe (Word8)
+indexMaybe :: ByteString -> Int -> Maybe Word8
 indexMaybe b n
-  | n >= BL.length b = Nothing
-  | otherwise = Just $ BL.index b n
+  | n >= B.length b = Nothing
+  | otherwise = Just $ B.index b n
 
 start :: Disassembler ()
 start = do
@@ -44,7 +43,7 @@ next = do
 instruction :: Disassembler Instruction
 instruction = undefined
 
-updatePosition :: Int64 -> Disassembler ()
+updatePosition :: Int -> Disassembler ()
 updatePosition n = modify $ \s -> s { position = position s + n }
 
 disassemble :: InesROM -> Maybe DisasmState
