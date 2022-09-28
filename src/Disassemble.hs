@@ -1,10 +1,11 @@
 module Disassemble (disassemble) where
 
-import Control.Monad(replicateM)
+import Control.Monad (replicateM)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as B
+import Data.Int (Int8)
 import Data.Word
 
 import Opcode
@@ -27,17 +28,28 @@ indexMaybe b n
   | n >= B.length b = Nothing
   | otherwise = Just $ B.index b n
 
-isJumpOrBranch :: Mnemonic -> Bool
-isJumpOrBranch m = if elem m [JMP, JSR, BPL, BIT, BVC, RTS, BVS, BCC, BCS, BNE, BEQ] then True else False
+isJump :: Mnemonic -> Bool
+isJump m = if elem m [JMP, JSR, RTS] then True else False
+
+isBranch :: Mnemonic -> Bool
+isBranch m = if elem m [BPL, BMI, BVC, BNE, BEQ, BCC, BCS, BVS] then True else False
 
 start :: Disassembler ()
 start = do
   opc <- next
   (m, o) <- instruction opc
   modify $ \s -> s { done = (m, o) : done s }
-  case isJumpOrBranch m of -- placeholder
-    True -> return ()
-    False -> start
+  case isJump m of
+    True -> return () -- placeholder
+    False -> case isBranch m of
+      True -> branch o >> start
+      False -> start
+
+branch :: Operand -> Disassembler ()
+branch (Just (o:_)) = updatePosition $ fromIntegral (fromIntegral o :: Int8) -- signed 8 bit value
+
+subroutine :: Disassembler ()
+subroutine = undefined
 
 next :: Disassembler Opcode
 next = do
