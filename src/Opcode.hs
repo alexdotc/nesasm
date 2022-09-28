@@ -3,6 +3,7 @@ module Opcode where
 import Data.Word (Word8)
 
 data Opcode = Op Mnemonic AddressingMode deriving (Eq, Show)
+data NumOperands = ZeroOpr | OneOpr | TwoOpr deriving (Eq, Show, Enum)
 
 data AddressingMode =  Implied
                      | Accumulator
@@ -30,13 +31,13 @@ data Mnemonic =  BRK | ORA | SLO | NOP | ASL | ANC | BPL | CLC | SED
                   | INX | TAX | KIL
                   deriving (Eq, Show)
 
-lenOpcode :: AddressingMode -> Int
-lenOpcode a
-  | a `elem` [Implied, Accumulator] = 0
+numOperands :: AddressingMode -> NumOperands
+numOperands a
+  | a `elem` [Implied, Accumulator] = ZeroOpr
   | a `elem` [Immediate, Relative, ZeroPage 
             , ZeroPageIndexedX, ZeroPageIndexedY
-            , IndirectIndexed, IndexedIndirect] = 1
-  | otherwise = 2
+            , IndirectIndexed, IndexedIndirect] = OneOpr
+  | otherwise = TwoOpr
 
 parseOpcode :: Word8 -> Maybe Opcode
 parseOpcode b

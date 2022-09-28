@@ -1,10 +1,10 @@
 module Disassemble (disassemble) where
 
+import Control.Monad(replicateM)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as B
-import Data.Functor.Identity (Identity)
 import Data.Word
 
 import Opcode
@@ -19,7 +19,7 @@ data DisasmState = DisasmState {
 type Disassembler = StateT DisasmState Maybe
 
 type InesROM = ByteString -- redundant, keep till reorg
-type Operand = Maybe Word8
+type Operand = Maybe [Word8]
 type Instruction = (Mnemonic, Operand)
 
 indexMaybe :: ByteString -> Int -> Maybe Word8
@@ -34,6 +34,7 @@ start :: Disassembler ()
 start = do
   opc <- next
   (m, o) <- instruction opc
+  modify $ \s -> s { done = (m, o) : done s }
   case isJumpOrBranch m of -- placeholder
     True -> return ()
     False -> start
@@ -45,14 +46,18 @@ next = do
   updatePosition 1
   lift $ indexMaybe rom pos >>= parseOpcode
 
-instruction :: Opcode -> Disassembler Instruction
-instruction (Op m a) = do
+takeByte :: Disassembler Word8
+takeByte = do
   pos <- gets position
   rom <- gets prg
-  n <- case lenOpcode a of
-         0 -> return Nothing
-         1 -> (return $ indexMaybe rom pos) <* updatePosition 1
-         2 -> (return $ indexMaybe rom pos) <* updatePosition 2 -- TODO return 2 bytes not just 1
+  (lift $ indexMaybe rom pos) <* updatePosition 1
+
+instruction :: Opcode -> Disassembler Instruction
+instruction (Op m a) = do
+  n <- case numOperands a of
+         ZeroOpr -> return Nothing
+         OneOpr -> return <$> replicateM 1 takeByte
+         TwoOpr -> return <$> replicateM 2 takeByte
   return (m, n)
 
 updatePosition :: Int -> Disassembler ()
