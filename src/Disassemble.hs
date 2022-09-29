@@ -5,6 +5,7 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State
 import Data.Array.Unboxed (UArray, (//), (!))
 import qualified Data.Array.Unboxed as UA
+import Data.Bits ((.|.), shiftL)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as B
 import Data.Int (Int8)
@@ -15,7 +16,7 @@ import Opcode
 data DisasmState = DisasmState {
                      position :: Int
                    , assembly :: [Instruction]
-                   , stack :: [Word32]
+                   , stack :: [Word16]
                    , done :: UArray Int Bool
                    , prg :: ByteString
                    } deriving Show
@@ -31,9 +32,6 @@ indexMaybe b n
   | n >= B.length b = Nothing
   | otherwise = Just $ B.index b n
 
-isJump :: Mnemonic -> Bool
-isJump m = if elem m [JMP, JSR, RTS] then True else False
-
 isBranch :: Mnemonic -> Bool
 isBranch m = if elem m [BPL, BMI, BVC, BNE, BEQ, BCC, BCS, BVS] then True else False
 
@@ -43,11 +41,14 @@ start = do
   opc <- opcode
   (m, o) <- instruction opc
   modify $ \s -> s { assembly = (m, o) : assembly s }
-  case isJump m of
-    True -> return () -- placeholder
-    False -> case isBranch m of
-      True -> branch o >> start
-      False -> start
+  case isBranch m of
+    True -> branch o >> start
+    False -> case m of
+      JMP -> return () -- handle 2 types of jmp
+      RTI -> return () -- placeholder
+      JSR -> pushSubroutine o
+      RTS -> popSubroutine
+      _   -> start
 
 checkDone :: Disassembler ()
 checkDone = do
@@ -60,8 +61,20 @@ checkDone = do
 branch :: Operand -> Disassembler ()
 branch (Just (o:_)) = updatePosition $ fromIntegral (fromIntegral o :: Int8) -- signed 8 bit value
 
-subroutine :: Disassembler ()
-subroutine = undefined
+fuseAbsoluteOperand :: Operand -> Word16
+fuseAbsoluteOperand (Just (lsb:msb:[])) = (shiftL (fromIntegral msb :: Word16) 8) .|. (fromIntegral lsb :: Word16)
+
+pushSubroutine :: Operand -> Disassembler ()
+pushSubroutine o = do
+  let t = fuseAbsoluteOperand o
+  modify $ \s -> s { stack = (fromIntegral (position s) :: Word16):(stack s) 
+                              , position = fromIntegral $ t - 0x8000 } -- maybe? TODO
+
+popSubroutine :: Disassembler ()
+popSubroutine = do
+  (top:rest) <- gets stack
+  modify $ \s -> s { stack = rest, position = fromIntegral top }
+  
 
 opcode :: Disassembler Opcode
 opcode = do
