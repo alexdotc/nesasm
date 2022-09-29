@@ -2,14 +2,14 @@ module Disassemble (disassemble) where
 
 import Control.Monad (replicateM)
 import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.State
+import Control.Monad.Trans.State (StateT, gets, execStateT, modify)
 import Data.Array.Unboxed (UArray, (//), (!))
 import qualified Data.Array.Unboxed as UA
 import Data.Bits ((.|.), shiftL)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as B
 import Data.Int (Int8)
-import Data.Word
+import Data.Word (Word8, Word16)
 
 import Opcode
 
@@ -46,8 +46,8 @@ start = do
     False -> case m of
       JMP -> return () -- handle 2 types of jmp
       RTI -> return () -- placeholder
-      JSR -> pushSubroutine o
-      RTS -> popSubroutine
+      JSR -> pushSubroutine o >> start
+      RTS -> popSubroutine >> start
       _   -> start
 
 checkDone :: Disassembler ()

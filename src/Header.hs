@@ -4,11 +4,13 @@
 
 module Header (InesHeader(..), getInesHeader) where
 
-import Control.Monad (replicateM)
-import Control.Monad.Trans.Reader
-import Data.Binary.Get
-import Data.Bits
-import Data.Word (Word8, Word16, Word32)
+import           Control.Monad (replicateM)
+import qualified Control.Monad.Trans.Reader as R
+import           Control.Monad.Trans.Reader (Reader)
+import qualified Data.Binary.Get as G
+import           Data.Binary.Get (Get)
+import           Data.Bits (shiftL, shiftR, (.|.), (.&.))
+import           Data.Word (Word8, Word16, Word32)
 
 data InesHeader = InesHeader { 
                     prgromsize :: Word32 -- offset 4 (LSB), 9 bits 0-3 (MSB) 16K PRG ROM pages
@@ -32,11 +34,11 @@ data InesHeader = InesHeader {
 
 getInesHeader :: Get InesHeader
 getInesHeader = do
-  signature <- getLazyByteString 4
+  signature <- G.getLazyByteString 4
   case signature of
     "NES\SUB" -> return ()
     _         -> fail "Bad header: iNES signature mismatch"
-  (b4:b5:b6:b7:b8:b9:b10:b11:b12:b13:b14:b15:_) <- replicateM 12 getWord8
+  (b4:b5:b6:b7:b8:b9:b10:b11:b12:b13:b14:b15:_) <- replicateM 12 G.getWord8
 
   let prgromsize = 16384 * (fromIntegral $ word12PRG b4 b9)
   let chrromsize =  8192 * (fromIntegral $ word12CHR b5 b9)
@@ -136,7 +138,7 @@ parseFlags7 b b13 = (n,c,m)
   where n = b .&. 0b1100 == 0b1000
         c = case b .&. 0b11 of
               0b00 -> NESFamicom
-              0b01 -> runReader parseVST b13
+              0b01 -> R.runReader parseVST b13
               0b10 -> Playchoice10
               0b11 -> ExtendedConsole $ parseECT b13
         m = b .&. 0xF0
@@ -156,7 +158,7 @@ parseECT b = case b .&. 0xF of
                _   -> ReservedOrUnknownECT
 
 parseVST :: Reader Word8 ConsoleType
-parseVST = reader $ \b ->
+parseVST = R.reader $ \b ->
              let p = case b .&. 0xF of
                        0x0 -> RP2C03B
                        0x1 -> RP2C03G

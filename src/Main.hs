@@ -2,11 +2,12 @@
 
 module Main where
 
-import Data.Binary.Get
-import Data.ByteString.Lazy (ByteString)
+import qualified Data.Binary.Get as G
+import           Data.Binary.Get (Get)
+import           Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as B
-import System.Environment (getArgs)
-import System.Exit (exitFailure)
+import           System.Environment (getArgs)
+import           System.Exit (exitFailure)
 
 import Header
 import Disassemble
@@ -24,7 +25,7 @@ data InesFile = InesFile {
                 } deriving Show
 
 getROM :: Integral a => a -> Get InesROM
-getROM size = getLazyByteString $ fromIntegral size
+getROM size = G.getLazyByteString $ fromIntegral size
 
 chunkrom :: Get InesFile
 chunkrom = do
@@ -46,5 +47,5 @@ main = do
     0 -> do putStrLn "Please specify a NES ROM!"; exitFailure
     _ -> return ()
   nes2_0 <- B.readFile $ head args
-  let inr =  runGet chunkrom nes2_0
+  let inr =  G.runGet chunkrom nes2_0
   print $ disassemble $ B.toStrict $ prgrom inr
